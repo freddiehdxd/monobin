@@ -50,6 +50,14 @@ type App struct {
 	middleware  []Middleware    // applied around the route handler on the serve path
 	staticSkip  map[string]bool // patterns the static builder must not pre-render
 	tmplCache   sync.Map        // prod only: tmplName -> *template.Template prototype
+
+	notFound  string                       // tmplName of routes/404.html, if present
+	redirects map[string]string            // from path -> to path (301)
+	meta      map[string]map[string]string // route pattern -> arbitrary metadata
+
+	// SiteURL is the absolute origin (e.g. https://example.com) used for
+	// sitemap.xml / robots.txt. Empty on serve falls back to the request host.
+	SiteURL string
 }
 
 // New builds an App. Dev reads app/ from disk (live reload, no recompile);
@@ -72,11 +80,12 @@ func New(embedded embed.FS, dev bool) (*App, error) {
 		loaders:     map[string]Loader{},
 		staticPaths: map[string]StaticPaths{},
 		staticSkip:  map[string]bool{},
+		redirects:   map[string]string{},
+		meta:        map[string]map[string]string{},
 	}
 	if err := a.scanRoutes(); err != nil {
 		return nil, err
 	}
-	a.registerLoaders()
 	return a, nil
 }
 
@@ -100,6 +109,14 @@ func (a *App) scanRoutes() error {
 		rel = strings.TrimSuffix(rel, "/index")
 		if rel == "" {
 			rel = "/"
+		}
+		// routes/404.html is the custom Not-Found page, not a routable URL.
+		if rel == "/404" {
+			if a.notFound != "" {
+				return fmt.Errorf("monobin: route conflict — app/%s and app/%s both define the 404 page; keep one", a.notFound, p)
+			}
+			a.notFound = p
+			return nil
 		}
 		rt := makeRoute(rel, p)
 		// e.g. blog.html and blog/index.html both map to /blog. Fail loudly

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -47,7 +48,60 @@ func (a *App) BuildStatic(outDir string) error {
 			return err
 		}
 	}
+	if err := a.writeSiteFiles(outDir); err != nil {
+		return err
+	}
 	return a.copyAssets(filepath.Join(outDir, "assets"))
+}
+
+// writeSiteFiles emits the non-route outputs: the custom 404 page, sitemap.xml,
+// robots.txt, and a _redirects file (Netlify/Cloudflare format) if any redirects
+// are registered.
+func (a *App) writeSiteFiles(outDir string) error {
+	if a.notFound != "" {
+		html, err := a.render(route{pattern: "/404", tmplName: a.notFound}, nil, httptest.NewRequest("GET", "/404", nil))
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(outDir, "404.html"), html, 0o644); err != nil {
+			return err
+		}
+		fmt.Println("  -> /404.html")
+	}
+
+	if a.SiteURL == "" {
+		fmt.Println("  note: App.SiteURL is empty — sitemap/robots use https://example.com; set it to your domain")
+	}
+	base := a.baseURL(nil)
+	sm, err := a.Sitemap(base)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(outDir, "sitemap.xml"), sm, 0o644); err != nil {
+		return err
+	}
+	fmt.Println("  -> /sitemap.xml")
+	if err := os.WriteFile(filepath.Join(outDir, "robots.txt"), a.Robots(base), 0o644); err != nil {
+		return err
+	}
+	fmt.Println("  -> /robots.txt")
+
+	if len(a.redirects) > 0 {
+		froms := make([]string, 0, len(a.redirects))
+		for from := range a.redirects {
+			froms = append(froms, from)
+		}
+		sort.Strings(froms) // deterministic output across builds
+		var b strings.Builder
+		for _, from := range froms {
+			b.WriteString(from + " " + a.redirects[from] + " 301\n")
+		}
+		if err := os.WriteFile(filepath.Join(outDir, "_redirects"), []byte(b.String()), 0o644); err != nil {
+			return err
+		}
+		fmt.Println("  -> /_redirects")
+	}
+	return nil
 }
 
 // validateOutDir refuses obviously destructive build targets: empty, ".", "..",

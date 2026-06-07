@@ -1,0 +1,20 @@
+# A. SSR — reverse-proxy your domain to the monobin binary (`monobin serve`).
+example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}
+
+# B. Static export — serve `monobin build dist` output directly (no app process).
+# example.com {
+# 	encode zstd gzip
+# 	root * /opt/mysite/dist
+# 	try_files {path} {path}/index.html
+# 	file_server
+# 	# Serve dist/404.html with a real 404 status (not a soft 200):
+# 	handle_errors {
+# 		rewrite * /404.html
+# 		file_server
+# 	}
+# 	# Note: Caddy does NOT read the _redirects file. If you use app.Redirect,
+# 	# translate those to `redir` directives here.
+# }

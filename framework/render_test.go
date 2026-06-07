@@ -22,6 +22,9 @@ func newAppFromFiles(t *testing.T, dev bool, files map[string]string) *App {
 		fsys:        mfs,
 		loaders:     map[string]Loader{},
 		staticPaths: map[string]StaticPaths{},
+		staticSkip:  map[string]bool{},
+		redirects:   map[string]string{},
+		meta:        map[string]map[string]string{},
 	}
 	if err := a.scanRoutes(); err != nil {
 		t.Fatalf("scanRoutes: %v", err)

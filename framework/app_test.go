@@ -23,6 +23,9 @@ func newTestApp(t *testing.T, routePaths ...string) *App {
 		fsys:        files,
 		loaders:     map[string]Loader{},
 		staticPaths: map[string]StaticPaths{},
+		staticSkip:  map[string]bool{},
+		redirects:   map[string]string{},
+		meta:        map[string]map[string]string{},
 	}
 	if err := a.scanRoutes(); err != nil {
 		t.Fatalf("scanRoutes: %v", err)

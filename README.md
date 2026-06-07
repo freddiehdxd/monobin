@@ -41,12 +41,13 @@ trade. If you live in the React app world, it isn't.
 ```
 main.go                 entrypoint: serve | dev | build
   //go:embed all:app     <- templates + built assets baked into the binary
+content.go              your server-side data: app.Loader / app.StaticPaths (package main)
 framework/
   app.go                 file-based router (app/routes/*.html -> URLs)
   render.go              SSR: layout + route + loader data + island mounts
   server.go              HTTP server, asset serving, dev live-reload (SSE)
   build.go               SSG: render every route to dist/
-  loaders.go             your server-side data fetching, per route
+  loaders.go             app.Loader / app.StaticPaths registration API
 app/
   layout.html            root layout
   routes/                file = route; [slug].html = dynamic route
@@ -69,9 +70,10 @@ renders an island.
 only in `.html` files aren't purged. The compiled sheet is linked as
 `/assets/style.css` in prod; in dev, Vite injects it with HMR.
 
-**Loaders.** Each route can register a server-side `Loader` (see `loaders.go`)
-that returns data exposed to the template as `.Data`. This is where Postgres /
-Redis / API calls go — server-only, SEO-safe.
+**Loaders.** Register a server-side `Loader` per route pattern with
+`app.Loader(pattern, fn)` (see `content.go`); its return value is exposed to the
+template as `.Data`. This is where Postgres / Redis / API calls go — server-only,
+SEO-safe.
 
 **Middleware & auth.** The core owns one hook — `app.Use(mw ...Middleware)`, where
 `Middleware` is the stdlib `func(http.Handler) http.Handler` — and exposes the
@@ -122,20 +124,24 @@ Monobin is meant to be legible to coding agents, not just humans:
 - [x] `v0.2` — cookie-session auth recipe (`examples/auth`, SSR-only via `NoStatic`)
 - [x] `v0.2` — agent-readable errors + `monobin check` / `routes` introspection
 - [x] `v0.2` — agent context files (`AGENTS.md`, `skill/SKILL.md`, `llms.txt`)
+- [x] `v0.3` — custom 404 page (`routes/404.html`)
+- [x] `v0.3` — redirects (`app.Redirect`) + `_redirects` export
+- [x] `v0.3` — sitemap.xml + robots.txt generation
+- [x] `v0.3` — route metadata helpers (`app.Meta` → `.Meta` + sitemap hints)
+- [x] `v0.3` — `monobin new` project scaffolder
+- [x] `v0.3` — Caddy + systemd deploy example (`examples/deploy`)
+- [x] `v0.3` — asset cache headers
 
 **Planned** (good first issues)
 
-- [ ] Built-in sitemap.xml + robots.txt generation
-- [ ] Custom 404 page
-- [ ] Redirects
-- [ ] Route metadata helpers
 - [ ] Nested layouts
-- [ ] Asset fingerprinting + cache headers
-- [ ] Example deployment with Caddy + systemd
-- [ ] `templ` option for typed components instead of `html/template`
 - [ ] Per-page island code-splitting (only load islands a page uses)
-- [ ] CLI starter (`monobin new`)
 - [ ] Streaming SSR
+
+**Intentionally out of scope**
+
+- `templ` typed components — would add a Go dependency; the stdlib-only core is the whole point.
+- Content-hashed asset fingerprinting — would require a manifest; stable filenames + cache headers cover the need.
 
 ## License
 

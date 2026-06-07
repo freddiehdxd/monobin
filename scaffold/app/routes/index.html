@@ -1,0 +1,9 @@
+{{ define "title" }}Home{{ end }}
+{{ define "content" }}
+  <h1 class="text-4xl font-bold tracking-tight text-indigo-600">Hello, Monobin</h1>
+  <p class="mt-4 leading-relaxed">
+    Edit <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-sm">app/routes/index.html</code>
+    to get started. The button below is an island (Preact), hydrated client-side:
+  </p>
+  <div class="mt-6">{{ island "Counter" (dict "start" 0 "label" "clicks") }}</div>
+{{ end }}

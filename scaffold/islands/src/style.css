@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+/* The Go templates in app/**.html render outside Vite, so without this their
+   utility classes would be purged. Keep it. */
+@source "../../app";

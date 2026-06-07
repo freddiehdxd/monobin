@@ -1,12 +1,15 @@
 package framework
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"text/tabwriter"
 )
 
 // RouteInfo is the machine-readable shape of one route (for `monobin routes`).
@@ -59,10 +62,17 @@ func (a *App) Check() []Finding {
 		patterns[rt.pattern] = true
 	}
 
-	// 1. every route template parses (layout + page)
+	// 1. every route template parses (layout + page), incl. the custom 404
+	tmpls := make([]string, 0, len(a.routes)+1)
 	for _, rt := range a.routes {
-		if _, err := a.parse(rt.tmplName, &renderState{}); err != nil {
-			out = append(out, Finding{"error", "app/" + rt.tmplName, err.Error(), "fix the template syntax"})
+		tmpls = append(tmpls, rt.tmplName)
+	}
+	if a.notFound != "" {
+		tmpls = append(tmpls, a.notFound)
+	}
+	for _, name := range tmpls {
+		if _, err := a.parse(name, &renderState{}); err != nil {
+			out = append(out, Finding{"error", "app/" + name, err.Error(), "fix the template syntax"})
 		}
 	}
 
@@ -86,6 +96,9 @@ func (a *App) Check() []Finding {
 		for _, rt := range a.routes {
 			files = append(files, rt.tmplName)
 		}
+		if a.notFound != "" {
+			files = append(files, a.notFound)
+		}
 		for _, f := range files {
 			for _, name := range a.islandRefs(f) {
 				if !reg[name] {
@@ -107,7 +120,16 @@ func (a *App) Check() []Finding {
 		})
 	}
 
-	// 4. loader / StaticPaths keys must map to a real route pattern
+	// 4. a redirect whose source is also a real route is self-contradictory
+	for from := range a.redirects {
+		if patterns[from] {
+			out = append(out, Finding{"warn", from,
+				"redirect source shadows a real route — the route is still built but unreachable on serve",
+				"remove the redirect or rename/remove the route"})
+		}
+	}
+
+	// 5. loader / StaticPaths keys must map to a real route pattern
 	for key := range a.loaders {
 		if !patterns[key] {
 			out = append(out, Finding{"error", key,
@@ -123,6 +145,59 @@ func (a *App) Check() []Finding {
 		}
 	}
 	return out
+}
+
+// PrintRoutes renders the route table (human) or JSON to w. Used by the
+// `monobin routes` subcommand and reusable by scaffolded projects.
+func PrintRoutes(w io.Writer, infos []RouteInfo, asJSON bool) {
+	if asJSON {
+		b, _ := json.MarshalIndent(infos, "", "  ")
+		fmt.Fprintln(w, string(b))
+		return
+	}
+	yn := func(b bool) string {
+		if b {
+			return "yes"
+		}
+		return "no"
+	}
+	tw := tabwriter.NewWriter(w, 0, 2, 2, ' ', 0)
+	fmt.Fprintln(tw, "PATTERN\tTEMPLATE\tDYNAMIC\tLOADER\tSTATICPATHS")
+	for _, r := range infos {
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", r.Pattern, r.Template, yn(r.Dynamic), yn(r.HasLoader), yn(r.HasStaticPaths))
+	}
+	tw.Flush()
+}
+
+// PrintCheck renders findings (human or JSON) to w and returns the process exit
+// code (1 if any error-level finding, else 0).
+func PrintCheck(w io.Writer, findings []Finding, asJSON bool) int {
+	if asJSON {
+		b, _ := json.MarshalIndent(findings, "", "  ")
+		fmt.Fprintln(w, string(b))
+	}
+	errs, warns := 0, 0
+	for _, f := range findings {
+		if f.Level == "error" {
+			errs++
+		} else {
+			warns++
+		}
+		if !asJSON {
+			fmt.Fprintf(w, "%-5s %s\n        %s\n        fix: %s\n", strings.ToUpper(f.Level), f.Where, f.Message, f.Fix)
+		}
+	}
+	if !asJSON {
+		if errs == 0 && warns == 0 {
+			fmt.Fprintln(w, "monobin check: OK — no problems found")
+		} else {
+			fmt.Fprintf(w, "monobin check: %d error(s), %d warning(s)\n", errs, warns)
+		}
+	}
+	if errs > 0 {
+		return 1
+	}
+	return 0
 }
 
 func (a *App) islandRefs(tmplName string) []string {

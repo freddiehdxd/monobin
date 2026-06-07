@@ -6,10 +6,12 @@
 - [framework/app.go](framework/app.go): App, file-based router, dynamic-route matching, fillPattern
 - [framework/render.go](framework/render.go): SSR pipeline; `island` + `dict`/`scripts`/`styles` template funcs; conditional zero-JS
 - [framework/server.go](framework/server.go): http.Handler, middleware chain wiring, /assets, dev live-reload (SSE)
-- [framework/build.go](framework/build.go): BuildStatic (SSG), StaticPaths expansion, ErrNotFound skip, output-dir guard
+- [framework/build.go](framework/build.go): BuildStatic (SSG), StaticPaths expansion, 404/sitemap/robots/_redirects output, dir guard
+- [framework/site.go](framework/site.go): App.Redirect, App.Meta, Sitemap, Robots, custom 404 rendering
 - [framework/middleware.go](framework/middleware.go): Middleware, App.Use, RoutePattern, App.NoStatic
 - [framework/introspect.go](framework/introspect.go): App.RouteInfo, App.Check (power `monobin routes` / `check`)
-- [framework/loaders.go](framework/loaders.go): example loaders + StaticPaths (Loader, Ctx, ErrNotFound)
+- [framework/loaders.go](framework/loaders.go): App.Loader / App.StaticPaths registration API (the Loader/StaticPaths/Ctx types + ErrNotFound live in app.go)
+- [content.go](content.go): demo server-side data (Post dataset, registerContent wiring loaders via app.Loader/app.StaticPaths — package main)
 
 ## Client + recipes
 - [islands/src/entry.js](islands/src/entry.js): island registry + hydration loop

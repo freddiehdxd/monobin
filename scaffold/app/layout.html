@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ block "title" . }}My Monobin site{{ end }}</title>
+  <meta name="description" content="{{ block "description" . }}Built with Monobin.{{ end }}">
+  {{ styles }}
+</head>
+<body class="mx-auto max-w-2xl px-6 py-14 font-sans text-slate-700 antialiased">
+  <nav class="mb-12 text-sm font-medium text-slate-400">
+    <a href="/" class="transition-colors hover:text-indigo-600">home</a>
+  </nav>
+
+  {{ block "content" . }}{{ end }}
+
+  {{ scripts }}
+</body>
+</html>

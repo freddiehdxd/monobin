@@ -16,9 +16,11 @@ func TestBuildStatic(t *testing.T) {
 		"routes/index.html":       `{{ define "content" }}home{{ end }}`,
 		"routes/blog/[slug].html": `{{ define "content" }}post {{ .Params.slug }}{{ end }}`,
 		"routes/x/[id].html":      `{{ define "content" }}x{{ end }}`, // dynamic, NO StaticPaths -> skipped
+		"routes/404.html":         `{{ define "content" }}not found{{ end }}`,
 		"assets/style.css":        `/* css */`,
 		"assets/entry.js":         `// js`,
 	})
+	a.Redirect("/old", "/new")
 	a.loaders["/blog/:slug"] = func(c *Ctx) (any, error) {
 		if c.Params["slug"] == "missing" {
 			return nil, ErrNotFound // must be skipped at build, not abort it
@@ -63,6 +65,16 @@ func TestBuildStatic(t *testing.T) {
 	}
 	if !exists("assets/style.css") || !exists("assets/entry.js") {
 		t.Error("assets not copied into dist/assets")
+	}
+	// non-route outputs
+	if !exists("404.html") || !strings.Contains(read("404.html"), "not found") {
+		t.Error("missing/incorrect dist/404.html")
+	}
+	if !exists("sitemap.xml") || !exists("robots.txt") {
+		t.Error("missing dist/sitemap.xml or dist/robots.txt")
+	}
+	if got := read("_redirects"); got != "/old /new 301\n" {
+		t.Errorf("dist/_redirects = %q, want \"/old /new 301\\n\"", got)
 	}
 }
 

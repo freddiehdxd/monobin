@@ -1,0 +1,17 @@
+[Unit]
+Description=monobin site
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/mysite
+ExecStart=/opt/mysite/monobin serve
+Restart=on-failure
+# Drop privileges / harden (optional but recommended):
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

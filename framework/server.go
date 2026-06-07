@@ -35,10 +35,29 @@ func (a *App) Handler() http.Handler {
 		mux.HandleFunc("/__live", a.liveReload)
 	}
 
+	mux.HandleFunc("/sitemap.xml", func(w http.ResponseWriter, r *http.Request) {
+		b, err := a.Sitemap(a.baseURL(r))
+		if err != nil {
+			log.Printf("monobin: sitemap: %v", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		w.Write(b)
+	})
+	mux.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Write(a.Robots(a.baseURL(r)))
+	})
+
 	// Match first so the route pattern is in context before middleware runs,
 	// then hand off to the middleware-wrapped renderer.
 	render := a.chain(http.HandlerFunc(a.handleRoute))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if to, ok := a.redirects[r.URL.Path]; ok {
+			http.Redirect(w, r, to, http.StatusMovedPermanently)
+			return
+		}
 		if rt, params, ok := a.match(r.URL.Path); ok {
 			r = withMatch(r, matched{rt, params})
 		}
@@ -54,12 +73,12 @@ func (a *App) Handler() http.Handler {
 func (a *App) handleRoute(w http.ResponseWriter, r *http.Request) {
 	m, ok := matchFrom(r)
 	if !ok {
-		http.NotFound(w, r)
+		a.render404(w, r)
 		return
 	}
 	html, err := a.render(m.rt, m.params, r)
 	if errors.Is(err, ErrNotFound) {
-		http.NotFound(w, r)
+		a.render404(w, r)
 		return
 	}
 	if err != nil {

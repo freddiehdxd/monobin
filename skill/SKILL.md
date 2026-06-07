@@ -21,19 +21,21 @@ Templates use Go `html/template` over a shared `layout.html`:
 ```
 
 ## Add server data (loader)
-Register a loader keyed by route pattern in `framework/loaders.go` → `registerLoaders`. Its return value is the template's `.Data`. This is where DB/Redis/API calls go (server-only):
+In your own `package main` (e.g. `content.go`), register a loader keyed by route
+pattern via `app.Loader`. Its return value is the template's `.Data`. This is where
+DB/Redis/API calls go (server-only):
 ```go
-a.loaders["/blog/:slug"] = func(c *Ctx) (any, error) {
+app.Loader("/blog/:slug", func(c *framework.Ctx) (any, error) {
     p, ok := findPost(c.Params["slug"])
     if !ok {
-        return nil, ErrNotFound // 404 at runtime, skipped by `monobin build`
+        return nil, framework.ErrNotFound // 404 at runtime, skipped by `monobin build`
     }
     return p, nil
-}
+})
 // Dynamic routes also need StaticPaths to be pre-rendered by `monobin build`:
-a.staticPaths["/blog/:slug"] = func() ([]map[string]string, error) {
+app.StaticPaths("/blog/:slug", func() ([]map[string]string, error) {
     return []map[string]string{{"slug": "hello"}}, nil
-}
+})
 ```
 
 ## Add interactivity (island)

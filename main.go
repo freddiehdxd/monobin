@@ -1,14 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"embed"
-	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/freddiehdxd/monobin/examples/auth"
 	"github.com/freddiehdxd/monobin/framework"
@@ -20,10 +22,24 @@ import (
 //go:embed all:app
 var appFS embed.FS
 
+// Starter project files emitted by `monobin new`.
+//
+//go:embed all:scaffold
+var scaffoldFS embed.FS
+
 func main() {
 	cmd := "serve"
 	if len(os.Args) > 1 {
 		cmd = os.Args[1]
+	}
+
+	// `new` scaffolds a fresh project and needs no app loaded.
+	if cmd == "new" {
+		if err := newProject(os.Args); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	// routes/check read app/ from disk (like dev) so they reflect current source.
@@ -35,6 +51,9 @@ func main() {
 	}
 
 	// --- user-land wiring (the framework owns hooks, not policy) ---
+	// This app's server-side data (loaders + StaticPaths) — see content.go.
+	registerContent(app)
+
 	// A trivial access log, registered first so it wraps every request.
 	app.Use(accessLog())
 
@@ -44,6 +63,11 @@ func main() {
 	sessions := auth.NewStore()
 	app.Use(sessions.Middleware("/account"))
 	app.NoStatic("/account")
+
+	// Demo: a redirect, a sitemap hint, and the origin for sitemap.xml/robots.txt.
+	app.SiteURL = "https://example.com" // set to your real domain
+	app.Redirect("/home", "/")
+	app.Meta("/", map[string]string{"changefreq": "weekly", "priority": "1.0"})
 
 	switch cmd {
 	case "dev":
@@ -74,10 +98,10 @@ func main() {
 		}
 	case "routes":
 		// Introspection: print every route (human table, or --json for agents/CI).
-		printRoutes(app.RouteInfo(), hasFlag("--json"))
+		framework.PrintRoutes(os.Stdout, app.RouteInfo(), hasFlag("--json"))
 	case "check":
 		// Static validation; exits non-zero if any error-level finding.
-		os.Exit(runCheck(app.Check(), hasFlag("--json")))
+		os.Exit(framework.PrintCheck(os.Stdout, app.Check(), hasFlag("--json")))
 	case "help", "-h", "--help":
 		fmt.Println(usage)
 	default:
@@ -87,7 +111,7 @@ func main() {
 	}
 }
 
-const usage = "usage: monobin [serve|dev|build [outdir]|routes [--json]|check [--json]|help]"
+const usage = "usage: monobin [serve|dev|build [outdir]|routes [--json]|check [--json]|new <dir>|help]"
 
 func hasFlag(flag string) bool {
 	for _, a := range os.Args[1:] {
@@ -98,55 +122,54 @@ func hasFlag(flag string) bool {
 	return false
 }
 
-func printRoutes(infos []framework.RouteInfo, asJSON bool) {
-	if asJSON {
-		b, _ := json.MarshalIndent(infos, "", "  ")
-		fmt.Println(string(b))
-		return
-	}
-	yn := func(b bool) string {
-		if b {
-			return "yes"
-		}
-		return "no"
-	}
-	tw := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(tw, "PATTERN\tTEMPLATE\tDYNAMIC\tLOADER\tSTATICPATHS")
-	for _, r := range infos {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", r.Pattern, r.Template, yn(r.Dynamic), yn(r.HasLoader), yn(r.HasStaticPaths))
-	}
-	tw.Flush()
-}
+var moduleNameRe = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
-// runCheck prints findings and returns the process exit code (1 if any error).
-func runCheck(findings []framework.Finding, asJSON bool) int {
-	if asJSON {
-		b, _ := json.MarshalIndent(findings, "", "  ")
-		fmt.Println(string(b))
+// newProject writes the embedded scaffold into a fresh directory, filling in the
+// module path (from the directory name) and pinning the framework version.
+func newProject(args []string) error {
+	if len(args) < 3 {
+		return fmt.Errorf("usage: monobin new <dir>")
 	}
-	errs, warns := 0, 0
-	for _, f := range findings {
-		switch f.Level {
-		case "error":
-			errs++
-		default:
-			warns++
+	dir := filepath.Clean(args[2])
+	module := filepath.Base(dir)
+	if !moduleNameRe.MatchString(module) {
+		return fmt.Errorf("%q is not a valid module/dir name (use letters, digits, '.', '_', '-')", module)
+	}
+	if _, err := os.Stat(dir); err == nil {
+		return fmt.Errorf("%q already exists", dir)
+	}
+	sub, err := fs.Sub(scaffoldFS, "scaffold")
+	if err != nil {
+		return err
+	}
+	err = fs.WalkDir(sub, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
 		}
-		if !asJSON {
-			fmt.Printf("%-5s %s\n        %s\n        fix: %s\n", strings.ToUpper(f.Level), f.Where, f.Message, f.Fix)
+		b, err := fs.ReadFile(sub, p)
+		if err != nil {
+			return err
 		}
-	}
-	if !asJSON {
-		if errs == 0 && warns == 0 {
-			fmt.Println("monobin check: OK — no problems found")
-		} else {
-			fmt.Printf("monobin check: %d error(s), %d warning(s)\n", errs, warns)
+		name := strings.TrimSuffix(p, ".tmpl") // main.go.tmpl -> main.go
+		if filepath.Base(name) == "gitignore" {
+			name = name[:len(name)-len("gitignore")] + ".gitignore"
 		}
+		if name == "go.mod" {
+			b = bytes.ReplaceAll(b, []byte("MODULE_NAME"), []byte(module))
+			b = bytes.ReplaceAll(b, []byte("VERSION"), []byte(framework.Version))
+		}
+		out := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(out, b, 0o644)
+	})
+	if err != nil {
+		return err
 	}
-	if errs > 0 {
-		return 1
-	}
-	return 0
+	fmt.Printf("created %s/\n", dir)
+	fmt.Printf("  next: cd %q && go mod tidy && (cd islands && npm install && npm run build) && go run .\n", dir)
+	return nil
 }
 
 // accessLog is an example logging Middleware: it logs every request after the

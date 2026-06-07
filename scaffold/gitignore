@@ -1,0 +1,6 @@
+/dist/
+/app-bin
+/app-bin.exe
+/app/assets/*
+!/app/assets/.keep
+node_modules/

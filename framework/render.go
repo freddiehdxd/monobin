@@ -13,6 +13,7 @@ type renderData struct {
 	Path   string
 	Params map[string]string
 	Data   any
+	Meta   map[string]string // per-route metadata registered via App.Meta
 }
 
 // renderState is per-render scratch shared between the island and scripts
@@ -119,6 +120,7 @@ func (a *App) render(rt route, params map[string]string, r *http.Request) ([]byt
 		Path:   r.URL.Path,
 		Params: params,
 		Data:   data,
+		Meta:   a.meta[rt.pattern],
 	})
 	if err != nil {
 		return nil, err

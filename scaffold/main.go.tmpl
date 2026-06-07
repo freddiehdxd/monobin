@@ -1,0 +1,62 @@
+package main
+
+import (
+	"embed"
+	"fmt"
+	"os"
+
+	"github.com/freddiehdxd/monobin/framework"
+)
+
+// Templates + built island assets are embedded — the whole app ships as one binary.
+//
+//go:embed all:app
+var appFS embed.FS
+
+func main() {
+	cmd := "serve"
+	if len(os.Args) > 1 {
+		cmd = os.Args[1]
+	}
+	// dev/routes/check read app/ from disk (live edits / current source).
+	useDisk := cmd == "dev" || cmd == "routes" || cmd == "check"
+	app, err := framework.New(appFS, useDisk)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+
+	app.SiteURL = "https://example.com" // set to your real domain (sitemap.xml/robots.txt)
+
+	switch cmd {
+	case "build":
+		out := "dist"
+		if len(os.Args) > 2 {
+			out = os.Args[2]
+		}
+		if err := app.BuildStatic(out); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+		fmt.Println("static site written to", out+"/")
+	case "routes":
+		framework.PrintRoutes(os.Stdout, app.RouteInfo(), hasJSON())
+	case "check":
+		os.Exit(framework.PrintCheck(os.Stdout, app.Check(), hasJSON()))
+	default: // serve | dev
+		fmt.Println("listening on http://localhost:3000")
+		if err := app.Serve(":3000"); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+	}
+}
+
+func hasJSON() bool {
+	for _, a := range os.Args[1:] {
+		if a == "--json" {
+			return true
+		}
+	}
+	return false
+}
