@@ -1,0 +1,19 @@
+{{ define "title" }}Blog — monobin{{ end }}
+{{ define "description" }}Posts rendered on the server, pre-built as static pages.{{ end }}
+{{ define "content" }}
+  <h1 class="text-3xl font-bold tracking-tight text-slate-900">Blog</h1>
+  <p class="mt-2 text-sm text-slate-500">
+    Each post is a dynamic route
+    (<code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700">routes/blog/[slug].html</code>)
+    pre-rendered at build time. Zero JavaScript shipped.
+  </p>
+
+  <ul class="mt-8 divide-y divide-slate-100">
+    {{ range .Data }}
+      <li class="py-4">
+        <a href="/blog/{{ .Slug }}" class="font-medium text-indigo-600 hover:underline">{{ .Title }}</a>
+        <p class="mt-1 text-sm text-slate-500">{{ .Summary }}</p>
+      </li>
+    {{ end }}
+  </ul>
+{{ end }}

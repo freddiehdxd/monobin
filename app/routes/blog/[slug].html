@@ -1,0 +1,19 @@
+{{ define "title" }}{{ .Data.Title }} — monobin blog{{ end }}
+{{ define "description" }}{{ .Data.Summary }}{{ end }}
+{{ define "content" }}
+  <p class="text-sm">
+    <a href="/blog" class="text-indigo-600 hover:underline">&larr; all posts</a>
+  </p>
+
+  <h1 class="mt-4 text-3xl font-bold tracking-tight text-slate-900">{{ .Data.Title }}</h1>
+  <p class="mt-2 text-lg text-slate-500">{{ .Data.Summary }}</p>
+
+  <article class="mt-6 leading-relaxed text-slate-700">
+    <p>{{ .Data.Body }}</p>
+  </article>
+
+  <p class="mt-10 text-xs text-slate-400">
+    route: <span class="font-mono">/blog/:slug</span> · slug =
+    <span class="font-mono text-slate-600">{{ .Params.slug }}</span>
+  </p>
+{{ end }}

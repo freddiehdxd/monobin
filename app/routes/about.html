@@ -1,0 +1,26 @@
+{{ define "title" }}About — monobin{{ end }}
+{{ define "description" }}Why monobin exists.{{ end }}
+{{ define "content" }}
+  <h1 class="text-3xl font-bold tracking-tight text-slate-900">About</h1>
+  <p class="mt-4 leading-relaxed">
+    Monobin is a tiny meta-framework with one opinion: the best deploy is a
+    single binary you can <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-sm text-slate-700">scp</code> and run.
+  </p>
+
+  <ul class="mt-6 space-y-3">
+    <li class="border-l-2 border-indigo-200 pl-4">
+      <strong class="font-semibold text-slate-900">HTML-first</strong>
+      — SSR + SSG by default, JS is opt-in.
+    </li>
+    <li class="border-l-2 border-indigo-200 pl-4">
+      <strong class="font-semibold text-slate-900">Islands</strong>
+      — interactive components hydrate in isolation.
+    </li>
+    <li class="border-l-2 border-indigo-200 pl-4">
+      <strong class="font-semibold text-slate-900">Zero-ops</strong>
+      — no node_modules in production, no PM2 for the app.
+    </li>
+  </ul>
+
+  <p class="mt-6 text-sm text-slate-500">This page ships <em>zero</em> JavaScript.</p>
+{{ end }}

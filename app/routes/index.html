@@ -1,0 +1,20 @@
+{{ define "title" }}{{ .Data.Title }} — Go islands framework{{ end }}
+{{ define "content" }}
+  <h1 class="text-4xl font-bold tracking-tight text-indigo-600">{{ .Data.Title }}</h1>
+  <p class="mt-2 text-lg text-slate-500">{{ .Data.Tagline }}</p>
+
+  <p class="mt-6 leading-relaxed">
+    This whole page rendered on the server as plain HTML — great for SEO and
+    instant first paint. JavaScript ships only for the interactive bit below.
+  </p>
+
+  <div class="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-5">
+    <p class="mb-3 text-sm text-slate-500">
+      <strong class="font-semibold text-slate-700">An island</strong>
+      (Preact, hydrated client-side):
+    </p>
+    {{ island "Counter" (dict "start" 3 "label" "clicks") }}
+  </div>
+
+  <p class="mt-8 text-xs text-slate-400">© {{ .Data.Year }} · built with Monobin</p>
+{{ end }}

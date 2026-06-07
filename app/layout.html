@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ block "title" . }}monobin{{ end }}</title>
+  <meta name="description" content="{{ block "description" . }}A Go single-binary, HTML-first islands framework.{{ end }}">
+  {{ styles }}
+</head>
+<body class="mx-auto min-h-screen max-w-2xl bg-white px-6 py-14 font-sans text-slate-700 antialiased">
+  <nav class="mb-12 flex gap-6 text-sm font-medium text-slate-400">
+    <a href="/" class="transition-colors hover:text-indigo-600">home</a>
+    <a href="/about" class="transition-colors hover:text-indigo-600">about</a>
+    <a href="/blog" class="transition-colors hover:text-indigo-600">blog</a>
+  </nav>
+
+  {{ block "content" . }}{{ end }}
+
+  <footer class="mt-16 border-t border-slate-100 pt-6 text-xs text-slate-400">
+    served as one binary · <span class="font-mono">{{ .Path }}</span>
+  </footer>
+  {{ scripts }}
+</body>
+</html>
