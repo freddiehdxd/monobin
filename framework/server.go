@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -20,7 +21,15 @@ func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	assetFS, _ := fs.Sub(a.fsys, "assets")
-	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assetFS))))
+	files := http.StripPrefix("/assets/", http.FileServer(http.FS(assetFS)))
+	mux.HandleFunc("/assets/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r) // no directory listings of embedded assets
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		files.ServeHTTP(w, r)
+	})
 
 	if a.Dev {
 		mux.HandleFunc("/__live", a.liveReload)
@@ -104,7 +113,13 @@ func (a *App) liveReload(w http.ResponseWriter, r *http.Request) {
 func (a *App) latestMod() time.Time {
 	var newest time.Time
 	fs.WalkDir(a.fsys, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if p == "assets" {
+				return fs.SkipDir // dev reload watches templates, not built assets
+			}
 			return nil
 		}
 		if info, e := d.Info(); e == nil && info.ModTime().After(newest) {

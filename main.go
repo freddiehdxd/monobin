@@ -78,10 +78,16 @@ func main() {
 	case "check":
 		// Static validation; exits non-zero if any error-level finding.
 		os.Exit(runCheck(app.Check(), hasFlag("--json")))
+	case "help", "-h", "--help":
+		fmt.Println(usage)
 	default:
-		fmt.Println("usage: monobin [serve|dev|build [outdir]|routes [--json]|check [--json]]")
+		fmt.Fprintln(os.Stderr, "monobin: unknown command "+cmd)
+		fmt.Fprintln(os.Stderr, usage)
+		os.Exit(2)
 	}
 }
+
+const usage = "usage: monobin [serve|dev|build [outdir]|routes [--json]|check [--json]|help]"
 
 func hasFlag(flag string) bool {
 	for _, a := range os.Args[1:] {

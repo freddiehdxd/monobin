@@ -62,6 +62,19 @@ func (a *App) funcs(st *renderState) template.FuncMap {
 // parse reads layout + route file directly (fs.ReadFile, not ParseFS) so that
 // dynamic filenames like [slug].html aren't treated as glob patterns.
 func (a *App) parse(tmplName string, st *renderState) (*template.Template, error) {
+	// Prod: the embedded templates never change, so parse once and reuse a
+	// prototype. Clone per request and rebind the FuncMap so the per-request
+	// renderState stays isolated. Dev always re-reads from disk for live edits.
+	if !a.Dev {
+		if v, ok := a.tmplCache.Load(tmplName); ok {
+			clone, err := v.(*template.Template).Clone()
+			if err != nil {
+				return nil, err
+			}
+			return clone.Funcs(a.funcs(st)), nil
+		}
+	}
+
 	layout, err := fs.ReadFile(a.fsys, "layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("monobin: reading app/layout.html: %w", err)
@@ -76,6 +89,13 @@ func (a *App) parse(tmplName string, st *renderState) (*template.Template, error
 	}
 	if _, err := t.New("page").Parse(string(page)); err != nil {
 		return nil, fmt.Errorf("monobin: parsing template app/%s: %w — fix the template syntax", tmplName, err)
+	}
+	if !a.Dev {
+		// Cache an un-executed clone as the prototype (the returned t is about to
+		// be executed by render, and Clone is illegal after Execute).
+		if proto, cerr := t.Clone(); cerr == nil {
+			a.tmplCache.Store(tmplName, proto)
+		}
 	}
 	return t, nil
 }

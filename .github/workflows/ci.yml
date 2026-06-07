@@ -17,8 +17,10 @@ jobs:
           cache: true
 
       # The Go side is stdlib-only. //go:embed all:app compiles against the
-      # committed app/ tree (app/assets/.keep guarantees the dir exists), so a
-      # full island build is not required just to compile and test the core.
+      # committed app/ tree (app/assets/.keep guarantees the dir exists), so the
+      # core builds/tests without the island build. NOTE: CI does NOT run the
+      # island/Tailwind build (npm) — verify client changes locally with
+      # `cd islands && npm run build`.
       - name: go build
         run: go build ./...
 
@@ -26,7 +28,7 @@ jobs:
         run: go vet ./...
 
       - name: go test
-        run: go test ./...
+        run: go test -race ./... # -race needs cgo; ubuntu runners ship gcc
 
       # Static validation: unregistered islands, dynamic routes missing
       # StaticPaths, loader keys with no route. Exits non-zero on error.

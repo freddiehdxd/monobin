@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // ErrNotFound lets a loader signal a 404 (e.g. unknown :slug).
@@ -48,6 +49,7 @@ type App struct {
 	staticPaths map[string]StaticPaths
 	middleware  []Middleware    // applied around the route handler on the serve path
 	staticSkip  map[string]bool // patterns the static builder must not pre-render
+	tmplCache   sync.Map        // prod only: tmplName -> *template.Template prototype
 }
 
 // New builds an App. Dev reads app/ from disk (live reload, no recompile);
@@ -110,6 +112,9 @@ func (a *App) scanRoutes() error {
 		return nil
 	})
 	if err != nil {
+		if a.Dev && errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("monobin: %w — dev reads ./app from the working directory; run from the repo root", err)
+		}
 		return err
 	}
 	// Static routes are matched before dynamic ones so /blog/featured beats

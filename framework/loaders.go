@@ -37,7 +37,9 @@ func (a *App) registerLoaders() {
 		return map[string]any{
 			"Title":   "Monobin",
 			"Tagline": "One binary. SSR + islands. Zero-ops deploy.",
-			"Year":    time.Now().Year(),
+			// NOTE: time-based loader data is build-stamped under SSG — `monobin
+			// build` captures the build-time year; re-run build to refresh it.
+			"Year": time.Now().Year(),
 		}, nil
 	}
 

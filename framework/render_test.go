@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 )
@@ -111,6 +112,44 @@ func TestRenderLoaderWiring(t *testing.T) {
 	if !strings.Contains(out, "data=hi slug=world path=/post/world") {
 		t.Errorf("loader Data / Params / Path not wired through:\n%s", out)
 	}
+}
+
+// TestRenderConcurrent hammers the prod template cache from many goroutines
+// (run under -race) and checks each render still produces the right output —
+// island page ships the bundle, island-free page ships zero JS.
+func TestRenderConcurrent(t *testing.T) {
+	a := newAppFromFiles(t, false, map[string]string{
+		"layout.html":       testLayout,
+		"routes/index.html": `{{ define "content" }}<h1>{{ .Data.Title }}</h1>{{ island "Counter" (dict "start" 3) }}{{ end }}`,
+		"routes/about.html": `{{ define "content" }}<h1>about</h1>{{ end }}`,
+	})
+	a.loaders["/"] = func(c *Ctx) (any, error) { return map[string]any{"Title": "Home"}, nil }
+
+	var wg sync.WaitGroup
+	for i := 0; i < 64; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			path, wantJS := "/about", false
+			if i%2 == 0 {
+				path, wantJS = "/", true
+			}
+			rt, params, ok := a.match(path)
+			if !ok {
+				t.Errorf("no match for %s", path)
+				return
+			}
+			b, err := a.render(rt, params, httptest.NewRequest("GET", path, nil))
+			if err != nil {
+				t.Errorf("render %s: %v", path, err)
+				return
+			}
+			if has := strings.Contains(string(b), "entry.js"); has != wantJS {
+				t.Errorf("%s entry.js=%v, want %v", path, has, wantJS)
+			}
+		}(i)
+	}
+	wg.Wait()
 }
 
 // TestRenderErrNotFoundPropagates locks the contract server.go relies on for 404s:

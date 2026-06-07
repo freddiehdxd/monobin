@@ -19,6 +19,8 @@
   <footer class="mt-16 border-t border-slate-100 pt-6 text-xs text-slate-400">
     served as one binary · <span class="font-mono">{{ .Path }}</span>
   </footer>
+  {{/* scripts must stay AFTER the content block: island usage is detected during
+       render, and that drives whether the client bundle is emitted (zero JS otherwise). */}}
   {{ scripts }}
 </body>
 </html>
