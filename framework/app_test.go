@@ -2,6 +2,7 @@ package framework
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -118,6 +119,44 @@ func TestStaticBeatsDynamicOrdering(t *testing.T) {
 	}
 	if rt.dynamic || rt.pattern != "/blog/featured" {
 		t.Errorf("matched %q (dynamic=%v), want static /blog/featured", rt.pattern, rt.dynamic)
+	}
+}
+
+// TestRouteCollision pins the fail-fast behavior: two files normalizing to the
+// same URL pattern must error during scan, not silently shadow each other.
+func TestRouteCollision(t *testing.T) {
+	mfs := fstest.MapFS{
+		"layout.html":            &fstest.MapFile{Data: []byte("layout")},
+		"routes/blog.html":       &fstest.MapFile{Data: []byte("a")},
+		"routes/blog/index.html": &fstest.MapFile{Data: []byte("b")},
+	}
+	a := &App{fsys: mfs, loaders: map[string]Loader{}, staticPaths: map[string]StaticPaths{}}
+	err := a.scanRoutes()
+	if err == nil {
+		t.Fatal("expected a route conflict error for blog.html vs blog/index.html, got nil")
+	}
+	if !strings.Contains(err.Error(), "/blog") {
+		t.Errorf("conflict error should name the pattern /blog, got: %v", err)
+	}
+}
+
+// TestMatchTrailingSlash characterizes current (lenient) trailing-slash matching
+// so a future refactor of match() can't change it silently.
+func TestMatchTrailingSlash(t *testing.T) {
+	a := newTestApp(t,
+		"routes/index.html",
+		"routes/about.html",
+		"routes/blog/[slug].html",
+	)
+	cases := []struct{ path, pattern string }{
+		{"/about/", "/about"},
+		{"/blog/hello/", "/blog/:slug"},
+	}
+	for _, c := range cases {
+		rt, _, ok := a.match(c.path)
+		if !ok || rt.pattern != c.pattern {
+			t.Errorf("match(%q) = (%q, ok=%v), want (%q, true)", c.path, rt.pattern, ok, c.pattern)
+		}
 	}
 }
 

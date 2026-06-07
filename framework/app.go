@@ -3,6 +3,7 @@ package framework
 import (
 	"embed"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
@@ -82,6 +83,7 @@ func New(embedded embed.FS, dev bool) (*App, error) {
 //	routes/blog/[slug].html  -> /blog/:slug   (dynamic)
 func (a *App) scanRoutes() error {
 	a.routes = nil
+	seen := map[string]string{} // pattern -> first template file that claimed it
 	err := fs.WalkDir(a.fsys, "routes", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -94,7 +96,14 @@ func (a *App) scanRoutes() error {
 		if rel == "" {
 			rel = "/"
 		}
-		a.routes = append(a.routes, makeRoute(rel, p))
+		rt := makeRoute(rel, p)
+		// e.g. blog.html and blog/index.html both map to /blog. Fail loudly
+		// instead of letting one silently shadow (and overwrite) the other.
+		if prev, dup := seen[rt.pattern]; dup {
+			return fmt.Errorf("route conflict: %q and %q both map to %q", prev, p, rt.pattern)
+		}
+		seen[rt.pattern] = p
+		a.routes = append(a.routes, rt)
 		return nil
 	})
 	if err != nil {

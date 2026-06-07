@@ -1,17 +1,25 @@
 package framework
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // BuildStatic renders every route to static HTML under outDir. Dynamic routes
 // are expanded via their registered StaticPaths. Output is a plain folder you
 // can serve from anywhere (Caddy file_server, R2, a CDN).
 func (a *App) BuildStatic(outDir string) error {
+	// BuildStatic wipes outDir first; guard against a typo nuking the project
+	// (e.g. `monobin build .` / an existing dir / `/`), since users run the
+	// single binary from their own shell with an arbitrary arg.
+	if err := validateOutDir(outDir); err != nil {
+		return err
+	}
 	if err := os.RemoveAll(outDir); err != nil {
 		return err
 	}
@@ -38,10 +46,50 @@ func (a *App) BuildStatic(outDir string) error {
 	return a.copyAssets(filepath.Join(outDir, "assets"))
 }
 
+// validateOutDir refuses obviously destructive build targets: empty, ".", "..",
+// the filesystem root, or the current working directory / any ancestor of it
+// (deleting which would take the source tree with it).
+func validateOutDir(outDir string) error {
+	if strings.TrimSpace(outDir) == "" {
+		return errors.New("build: output directory is empty")
+	}
+	clean := filepath.Clean(outDir)
+	switch clean {
+	case ".", "..", string(filepath.Separator):
+		return fmt.Errorf("build: refusing to delete %q", outDir)
+	}
+	abs, err := filepath.Abs(clean)
+	if err != nil {
+		return err
+	}
+	if abs == filepath.Dir(abs) { // filesystem root (e.g. "/" or "C:\")
+		return fmt.Errorf("build: refusing to delete filesystem root %q", abs)
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		if cwdAbs, err := filepath.Abs(cwd); err == nil {
+			// rel goes "up" (starts with "..") only when cwd is OUTSIDE abs;
+			// otherwise abs is the cwd or an ancestor of it -> unsafe to delete.
+			if rel, err := filepath.Rel(abs, cwdAbs); err == nil {
+				safe := rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))
+				if !safe {
+					return fmt.Errorf("build: refusing to delete %q (the current directory or an ancestor of it)", abs)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (a *App) writeRoute(outDir string, rt route, params map[string]string) error {
 	url := fillPattern(rt, params)
 	req := httptest.NewRequest("GET", url, nil)
 	html, err := a.render(rt, params, req)
+	// A loader returning ErrNotFound means "this page doesn't exist" — skip it
+	// (matches the runtime 404 in server.go) instead of aborting the whole build.
+	if errors.Is(err, ErrNotFound) {
+		fmt.Printf("  skip %s (ErrNotFound)\n", url)
+		return nil
+	}
 	if err != nil {
 		return err
 	}

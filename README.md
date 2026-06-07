@@ -8,9 +8,9 @@ in interactive "islands" only where you need them, and ship the *entire app —
 templates, assets, and all — as a single Go binary*.
 
 ```
-go build -o app .     # one file
-scp app server:        # ship it
-./app                  # run it
+go build -o monobin .  # one file
+scp monobin server:    # ship it
+./monobin              # run it
 ```
 
 No `node_modules` in production. No PM2 for the app itself. No standalone-output
