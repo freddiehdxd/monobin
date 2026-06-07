@@ -111,16 +111,25 @@ Monobin is meant to be legible to coding agents, not just humans:
 - **Introspection built in** — `monobin routes --json` dumps the app's shape; `monobin check` statically verifies it (unregistered islands, missing StaticPaths, dangling loader keys) and exits non-zero for CI.
 - **Context files shipped** — `AGENTS.md` (editing this repo), `skill/SKILL.md` (building a site with Monobin), `llms.txt` (source map) — each kept deliberately minimal.
 
-## Roadmap (good first issues)
+## Roadmap
 
-- [x] Dynamic routes (`routes/blog/[slug].html`) + StaticPaths for SSG ✓
+**Shipped**
+
+- [x] `v0.1` — dynamic routes (`routes/blog/[slug].html`) + StaticPaths for SSG
+- [x] `v0.1` — Preact islands (zero JS on island-free pages) + Tailwind v4 (`@source`)
+- [x] `v0.1` — single-binary deploy (`//go:embed`), SSR + SSG
+- [x] `v0.2` — middleware chain (`app.Use` + `RoutePattern`)
+- [x] `v0.2` — cookie-session auth recipe (`examples/auth`, SSR-only via `NoStatic`)
+- [x] `v0.2` — agent-readable errors + `monobin check` / `routes` introspection
+- [x] `v0.2` — agent context files (`AGENTS.md`, `skill/SKILL.md`, `llms.txt`)
+
+**Planned** (good first issues)
+
 - [ ] Built-in sitemap.xml + robots.txt generation
 - [ ] Custom 404 page
 - [ ] Redirects
 - [ ] Route metadata helpers
 - [ ] Nested layouts
-- [x] Middleware chain (`app.Use` + `RoutePattern`) ✓
-- [x] Better dev errors + `monobin check` / `routes` introspection ✓
 - [ ] Asset fingerprinting + cache headers
 - [ ] Example deployment with Caddy + systemd
 - [ ] `templ` option for typed components instead of `html/template`
