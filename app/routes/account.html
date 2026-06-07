@@ -1,0 +1,14 @@
+{{ define "title" }}Account — monobin{{ end }}
+{{ define "description" }}A server-rendered, auth-gated page (SSR-only).{{ end }}
+{{ define "content" }}
+  <h1 class="text-3xl font-bold tracking-tight text-slate-900">Your account</h1>
+  <p class="mt-4 leading-relaxed">
+    You're signed in. This page is rendered on the server behind a cookie-session
+    gate (see <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-sm text-slate-700">examples/auth</code>).
+    It is <strong>SSR-only</strong> — <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-sm text-slate-700">monobin build</code>
+    never emits it, because static files can't be auth-gated.
+  </p>
+  <p class="mt-6 text-sm">
+    <a href="/logout" class="text-indigo-600 hover:underline">log out</a>
+  </p>
+{{ end }}

@@ -73,6 +73,14 @@ only in `.html` files aren't purged. The compiled sheet is linked as
 that returns data exposed to the template as `.Data`. This is where Postgres /
 Redis / API calls go — server-only, SEO-safe.
 
+**Middleware & auth.** The core owns one hook — `app.Use(mw ...Middleware)`, where
+`Middleware` is the stdlib `func(http.Handler) http.Handler` — and exposes the
+matched route pattern to middleware via `framework.RoutePattern(r)`. Auth, logging,
+security headers, and rate limiting all live in user-land. See `examples/auth` for a
+~40-line cookie-session recipe that gates `/account`. Auth is **SSR-only**: statically
+exported pages are public files, so gated routes are marked `app.NoStatic(pattern)`
+and skipped by `monobin build`.
+
 **Dev vs prod.** In dev, templates are read from disk (edit + reload, no
 recompile) and island scripts load from the Vite dev server (HMR). In prod,
 everything is served from the embedded copy in the binary.
@@ -94,15 +102,31 @@ go run . dev                            # server on :3000, live reload
 go run . build dist                     # dist/ of plain HTML
 ```
 
+## Built for agents
+
+Monobin is meant to be legible to coding agents, not just humans:
+
+- **One way to do each thing** — file = route, one loader per route, one island registry. Less to infer, fewer wrong guesses.
+- **Fits in context** — the framework is a few hundred lines of stdlib Go; an agent can read all of it.
+- **Introspection built in** — `monobin routes --json` dumps the app's shape; `monobin check` statically verifies it (unregistered islands, missing StaticPaths, dangling loader keys) and exits non-zero for CI.
+- **Context files shipped** — `AGENTS.md` (editing this repo), `skill/SKILL.md` (building a site with Monobin), `llms.txt` (source map) — each kept deliberately minimal.
+
 ## Roadmap (good first issues)
 
-- [ ] Per-page island code-splitting (only load islands a page uses)
 - [x] Dynamic routes (`routes/blog/[slug].html`) + StaticPaths for SSG ✓
-- [ ] Nested layouts
-- [ ] Streaming SSR
-- [ ] `templ` option for typed components instead of `html/template`
-- [ ] Middleware chain
 - [ ] Built-in sitemap.xml + robots.txt generation
+- [ ] Custom 404 page
+- [ ] Redirects
+- [ ] Route metadata helpers
+- [ ] Nested layouts
+- [x] Middleware chain (`app.Use` + `RoutePattern`) ✓
+- [x] Better dev errors + `monobin check` / `routes` introspection ✓
+- [ ] Asset fingerprinting + cache headers
+- [ ] Example deployment with Caddy + systemd
+- [ ] `templ` option for typed components instead of `html/template`
+- [ ] Per-page island code-splitting (only load islands a page uses)
+- [ ] CLI starter (`monobin new`)
+- [ ] Streaming SSR
 
 ## License
 

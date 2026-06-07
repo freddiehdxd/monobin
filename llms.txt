@@ -1,0 +1,23 @@
+# Monobin
+
+> One binary. SSR + islands. Zero-ops deploy. A standard-library Go framework: file-based routing, server-side loaders, Preact islands, Tailwind v4 — shipped as a single `//go:embed` binary. Pull the real signatures from the source below instead of guessing.
+
+## Source (Go core, stdlib only)
+- [framework/app.go](framework/app.go): App, file-based router, dynamic-route matching, fillPattern
+- [framework/render.go](framework/render.go): SSR pipeline; `island` + `dict`/`scripts`/`styles` template funcs; conditional zero-JS
+- [framework/server.go](framework/server.go): http.Handler, middleware chain wiring, /assets, dev live-reload (SSE)
+- [framework/build.go](framework/build.go): BuildStatic (SSG), StaticPaths expansion, ErrNotFound skip, output-dir guard
+- [framework/middleware.go](framework/middleware.go): Middleware, App.Use, RoutePattern, App.NoStatic
+- [framework/introspect.go](framework/introspect.go): App.RouteInfo, App.Check (power `monobin routes` / `check`)
+- [framework/loaders.go](framework/loaders.go): example loaders + StaticPaths (Loader, Ctx, ErrNotFound)
+
+## Client + recipes
+- [islands/src/entry.js](islands/src/entry.js): island registry + hydration loop
+- [islands/src/counter.jsx](islands/src/counter.jsx): example island
+- [islands/src/style.css](islands/src/style.css): Tailwind `@import` + `@source "../../app"`
+- [examples/auth/auth.go](examples/auth/auth.go): cookie-session auth middleware (SSR-only recipe)
+
+## Docs
+- [README.md](README.md): thesis, why-not-Next.js, architecture, quickstart
+- [AGENTS.md](AGENTS.md): commands, gotchas, boundaries for editing this repo
+- [skill/SKILL.md](skill/SKILL.md): how to build a site with Monobin

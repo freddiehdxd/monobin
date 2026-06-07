@@ -27,3 +27,8 @@ jobs:
 
       - name: go test
         run: go test ./...
+
+      # Static validation: unregistered islands, dynamic routes missing
+      # StaticPaths, loader keys with no route. Exits non-zero on error.
+      - name: monobin check
+        run: go run . check

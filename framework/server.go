@@ -3,12 +3,20 @@ package framework
 import (
 	"errors"
 	"io/fs"
+	"log"
 	"net/http"
 	"time"
 )
 
 // Serve starts the HTTP server: matched routes -> SSR, /assets/ -> embedded build.
 func (a *App) Serve(addr string) error {
+	return http.ListenAndServe(addr, a.Handler())
+}
+
+// Handler builds the full HTTP handler (assets, dev live-reload, and the
+// middleware-wrapped route renderer). Exposed so tests and embedders can drive
+// the app without binding a port.
+func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	assetFS, _ := fs.Sub(a.fsys, "assets")
@@ -18,26 +26,45 @@ func (a *App) Serve(addr string) error {
 		mux.HandleFunc("/__live", a.liveReload)
 	}
 
+	// Match first so the route pattern is in context before middleware runs,
+	// then hand off to the middleware-wrapped renderer.
+	render := a.chain(http.HandlerFunc(a.handleRoute))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		rt, params, ok := a.match(r.URL.Path)
-		if !ok {
-			http.NotFound(w, r)
-			return
+		if rt, params, ok := a.match(r.URL.Path); ok {
+			r = withMatch(r, matched{rt, params})
 		}
-		html, err := a.render(rt, params, r)
-		if errors.Is(err, ErrNotFound) {
-			http.NotFound(w, r)
-			return
-		}
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(html)
+		render.ServeHTTP(w, r)
 	})
 
-	return http.ListenAndServe(addr, mux)
+	return mux
+}
+
+// handleRoute renders the route resolved by Handler (pulled from context). It is
+// the innermost handler in the middleware chain; a middleware that writes a
+// response and does not call next short-circuits before this runs.
+func (a *App) handleRoute(w http.ResponseWriter, r *http.Request) {
+	m, ok := matchFrom(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	html, err := a.render(m.rt, m.params, r)
+	if errors.Is(err, ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		// Log the detail for the operator/agent; don't leak internals to the client.
+		log.Printf("monobin: rendering %s (%s): %v", r.URL.Path, m.rt.tmplName, err)
+		msg := "internal server error"
+		if a.Dev {
+			msg = err.Error()
+		}
+		http.Error(w, msg, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(html)
 }
 
 // --- dev live reload (zero-dependency: SSE + mtime poll) ---

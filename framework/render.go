@@ -3,6 +3,7 @@ package framework
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -63,18 +64,18 @@ func (a *App) funcs(st *renderState) template.FuncMap {
 func (a *App) parse(tmplName string, st *renderState) (*template.Template, error) {
 	layout, err := fs.ReadFile(a.fsys, "layout.html")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("monobin: reading app/layout.html: %w", err)
 	}
 	page, err := fs.ReadFile(a.fsys, tmplName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("monobin: reading template app/%s: %w", tmplName, err)
 	}
 	t := template.New("layout.html").Funcs(a.funcs(st))
 	if _, err := t.Parse(string(layout)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("monobin: parsing app/layout.html: %w — fix the template syntax", err)
 	}
 	if _, err := t.New("page").Parse(string(page)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("monobin: parsing template app/%s: %w — fix the template syntax", tmplName, err)
 	}
 	return t, nil
 }

@@ -46,6 +46,8 @@ type App struct {
 	routes      []route
 	loaders     map[string]Loader
 	staticPaths map[string]StaticPaths
+	middleware  []Middleware    // applied around the route handler on the serve path
+	staticSkip  map[string]bool // patterns the static builder must not pre-render
 }
 
 // New builds an App. Dev reads app/ from disk (live reload, no recompile);
@@ -67,6 +69,7 @@ func New(embedded embed.FS, dev bool) (*App, error) {
 		fsys:        fsys,
 		loaders:     map[string]Loader{},
 		staticPaths: map[string]StaticPaths{},
+		staticSkip:  map[string]bool{},
 	}
 	if err := a.scanRoutes(); err != nil {
 		return nil, err
@@ -100,7 +103,7 @@ func (a *App) scanRoutes() error {
 		// e.g. blog.html and blog/index.html both map to /blog. Fail loudly
 		// instead of letting one silently shadow (and overwrite) the other.
 		if prev, dup := seen[rt.pattern]; dup {
-			return fmt.Errorf("route conflict: %q and %q both map to %q", prev, p, rt.pattern)
+			return fmt.Errorf("monobin: route conflict — app/%s and app/%s both map to %q; rename one", prev, p, rt.pattern)
 		}
 		seen[rt.pattern] = p
 		a.routes = append(a.routes, rt)

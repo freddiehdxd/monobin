@@ -1,0 +1,16 @@
+{{ define "title" }}Log in — monobin{{ end }}
+{{ define "description" }}Demo login for the cookie-session auth recipe.{{ end }}
+{{ define "content" }}
+  <h1 class="text-3xl font-bold tracking-tight text-slate-900">Log in</h1>
+  <p class="mt-2 text-sm text-slate-500">
+    Demo only — any username works (the recipe sets a session cookie).
+  </p>
+  <form method="post" action="/login" class="mt-6 flex max-w-sm gap-2">
+    <input name="user" value="demo" placeholder="username"
+      class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none">
+    <button type="submit"
+      class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
+      Sign in
+    </button>
+  </form>
+{{ end }}

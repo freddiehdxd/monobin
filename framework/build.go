@@ -24,10 +24,14 @@ func (a *App) BuildStatic(outDir string) error {
 		return err
 	}
 	for _, rt := range a.routes {
+		if a.staticSkip[rt.pattern] {
+			fmt.Printf("  skip %s (SSR-only: marked NoStatic, e.g. an auth-gated page)\n", rt.pattern)
+			continue
+		}
 		if rt.dynamic {
 			sp, ok := a.staticPaths[rt.pattern]
 			if !ok {
-				fmt.Printf("  skip %-16s (dynamic, no StaticPaths registered)\n", rt.pattern)
+				fmt.Printf("monobin: route %s is dynamic but has no StaticPaths registered — add a.staticPaths[%q] or it is skipped by 'monobin build'\n", rt.pattern, rt.pattern)
 				continue
 			}
 			sets, err := sp()
