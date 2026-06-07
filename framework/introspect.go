@@ -53,7 +53,7 @@ var (
 // StaticPaths (warn), islands referenced in templates are registered in
 // entry.js, and loader/StaticPaths keys map to real routes.
 func (a *App) Check() []Finding {
-	var out []Finding
+	out := []Finding{} // non-nil so an empty result marshals to [] (not null) for --json
 	patterns := map[string]bool{}
 	for _, rt := range a.routes {
 		patterns[rt.pattern] = true
